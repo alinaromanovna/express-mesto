@@ -8,15 +8,17 @@ const cardSchema = new mongoose.Schema({
     maxlength: 30, // а максимальная — 30 символов
   },
   link: {
-    type: String, // гендер — это строка
+    type: String,
     required: true,
   },
   owner: {
     type: mongoose.Schema.Types.ObjectId,
+    ref: 'user',
     required: true,
   },
   likes: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: [mongoose.Schema.Types.ObjectId],
+    ref: 'user',
     default: [],
   },
   createdAt: {

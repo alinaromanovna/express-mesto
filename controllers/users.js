@@ -5,23 +5,20 @@ module.exports.getUsers = (req, res) => {
     .then((users) => {
       res.send({ data: users });
     })
-    .catch((err) => {
+    .catch(() => {
       res.status(500).send({ message: 'Ошибка по умолчанию.' });
     });
 };
 
 module.exports.getUserById = (req, res) => {
-  const { _id } = req.params;
-
-  User.findById(_id)
+  User.findById(req.user._id)
     .then((user) => {
       if (user) {
         res.status(200).send({ data: user });
       }
       res.status(404).send({ message: 'Пользователь по указанному _id не найден.' });
     })
-
-    .catch((err) => {
+    .catch(() => {
       res.status(500).send({ message: 'Ошибка по умолчанию.' });
     });
 };
@@ -29,31 +26,30 @@ module.exports.getUserById = (req, res) => {
 module.exports.createUser = (req, res) => {
   const { name, about, avatar } = req.body;
   User.create({ name, about, avatar })
-    .then((user) => {
-      res.status(201).send({ data: user });
+    .then(() => {
+      res.status(201).send({ name, about, avatar });
     })
-    .catch((err) => {
-      res.status(400).send({ message: 'переданы некорректные данные в методы создания карточки, пользователя, обновления аватара пользователя или профиля;' });
+    .catch(() => {
+      res.status(400).send({ message: 'переданы некорректные данные в методы создания карточки;' });
     });
 };
+
 module.exports.updateUserById = (req, res) => {
   const { name, about } = req.body;
 
   User.findByIdAndUpdate(req.user._id, { name, about })
+    // eslint-disable-next-line consistent-return
     .then((user) => {
-      if (user) {
-        res.status(200).send({ name, about });
+      if (!user) {
+        return res.status(404).send({ message: 'Пользователь по указанному _id не найден.' });
       }
-      res.status(404).send({ message: 'Пользователь по указанному _id не найден.' });
+      res.status(200).send({ name, about });
     })
-
-    .catch((err) => {
-      if (err.status === 400) {
-        res.status(400).send({ message: 'переданы некорректные данные в методы создания карточки, пользователя, обновления аватара пользователя или профиля;' });
+    .catch(() => {
+      if ('ValidationError') {
+        return res.status(400).send({ message: 'переданы некорректные данные в методы обновления профиля;' });
       }
-      else if (err.status === 500) {
-        res.status(500).send({ message: 'Ошибка по умолчанию.' });
-      }
+      return res.status(500).send({ message: 'Ошибка по умолчанию.' });
     });
 };
 
@@ -61,19 +57,17 @@ module.exports.updateAvatarById = (req, res) => {
   const { avatar } = req.body;
 
   User.findByIdAndUpdate(req.user._id, { avatar })
+    // eslint-disable-next-line consistent-return
     .then((user) => {
-      if (user) {
-        res.status(200).send({ avatar });
+      if (!user) {
+        return res.status(404).send({ message: 'Пользователь по указанному _id не найден.' });
       }
-      res.status(404).send({ message: 'Пользователь по указанному _id не найден.' });
+      res.status(200).send({ avatar });
     })
-
-    .catch((err) => {
-      if (err.status === 400) {
-        res.status(400).send({ message: 'переданы некорректные данные в методы создания карточки, пользователя, обновления аватара пользователя или профиля;' });
+    .catch(() => {
+      if ('ValidationError') {
+        return res.status(400).send({ message: 'переданы некорректные данные в методы создания аватара пользователя;' });
       }
-      else if (err.status === 500) {
-        res.status(500).send({ message: 'Ошибка по умолчанию.' });
-      }
+      return res.status(500).send({ message: 'Ошибка по умолчанию.' });
     });
 };
