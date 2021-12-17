@@ -10,6 +10,7 @@ module.exports.getCards = (req, res) => {
     });
 };
 
+// eslint-disable-next-line consistent-return
 module.exports.createCard = (req, res) => {
   const { name, link } = req.body;
   const owner = req.user._id;
@@ -17,48 +18,56 @@ module.exports.createCard = (req, res) => {
   if (!name || !link) {
     return res.status(400).send({ message: 'Переданы некорректные данные при создании карточки.' });
   }
-  return Card.create({ name, link, owner })
+  Card.create({ name, link, owner })
     .then((card) => {
       res.status(201).send({ data: card });
     })
-    .catch(() => {
-      res.status(400).send({ message: 'Ошибка по умолчанию.' });
+    // eslint-disable-next-line consistent-return
+    .catch((err) => {
+      if (err.name === 'ValidationError') {
+        return res.status(400).send({ message: 'Переданы некорректные данные при создании карточки.' });
+      }
+      res.status(500).send({ message: 'Ошибка по умолчанию.' });
     });
 };
 
 module.exports.deleteCard = (req, res) => {
   const { cardId } = req.params;
-
   Card.findByIdAndRemove(cardId)
     // eslint-disable-next-line consistent-return
-    .then(() => {
+    .then((card) => {
+      if (!card) {
+        return res.status(404).send({ message: 'Карточка с указанным _id не найдена.' });
+      }
       res.status(200).send({ message: 'Карточка удалена' });
     })
     // eslint-disable-next-line consistent-return
-    .catch(() => {
-      if ('NotFoundError') {
-        return res.status(404).send({ message: 'Карточка с указанным _id не найдена.' });
+    .catch((err) => {
+      if (err.name === 'CastError') {
+        return res.status(400).send({ message: 'Переданы некорректные данные' });
       }
       res.status(500).send({ message: 'Ошибка по умолчанию.' });
     });
 };
+
 module.exports.likeCard = (req, res) => {
   Card.findByIdAndUpdate(
     req.params.cardId,
     { $addToSet: { likes: req.user._id } },
     { new: true },
   )
-    .then(() => {
-      if (!req.params.cardId) {
+    // eslint-disable-next-line consistent-return
+    .then((card) => {
+      if (!card) {
         return res.status(404).send({ message: 'Передан несуществующий _id карточки.' });
       }
-      return res.status(200).send({ message: 'Лайк поставлен!' });
+      res.status(200).send({ data: card });
     })
-    .catch(() => {
-      if ('CastError') {
-        return res.status(400).send({ message: '400 — Переданы некорректные данные для постановки/снятии лайка.' });
+    .catch((err) => {
+      if (err.name === 'CastError') {
+        return res.status(400).send({ message: 'Переданы некорректные данные для постановки/снятии лайка.' });
       }
-      return res.status(500).send({ message: '500 — Ошибка по умолчанию.' });
+      return res.status(500).send({ message: 'Ошибка по умолчанию.' });
     });
 };
 
@@ -68,16 +77,18 @@ module.exports.dislikeCard = (req, res) => {
     { $pull: { likes: req.user._id } },
     { new: true },
   )
+    // eslint-disable-next-line consistent-return
     .then((card) => {
       if (!card) {
         return res.status(404).send({ message: 'Передан несуществующий _id карточки.' });
       }
-      return res.status(200).send({ message: 'Лайк снят!' });
+      res.status(200).send({ data: card });
     })
-    .catch(() => {
-      if ('CastError') {
-        return res.status(400).send({ message: '400 — Переданы некорректные данные для постановки/снятии лайка.' });
+    // eslint-disable-next-line consistent-return
+    .catch((err) => {
+      if (err.name === 'CastError') {
+        return res.status(400).send({ message: 'Переданы некорректные данные для постановки/снятии лайка.' });
       }
-      return res.status(500).send({ message: '500 — Ошибка по умолчанию.' });
+      res.status(500).send({ message: 'Ошибка по умолчанию.' });
     });
 };
