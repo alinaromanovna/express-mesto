@@ -16,7 +16,7 @@ module.exports.getUserById = (req, res) => {
   User.findById(req.user._id)
     .then((user) => {
       if (!user) {
-        res.status(404).send({ message: 'Пользователь по указанному _id не найден.' });
+        return res.status(404).send({ message: 'Пользователь по указанному _id не найден.' });
       }
       res.status(200).send({ data: user });
     })
@@ -37,7 +37,7 @@ module.exports.createUser = (req, res) => {
     })
     .catch((err) => {
       if (err.name === 'ValidationError') {
-        res.status(400).send({ message: 'Переданы некорректные данные в методы создания пользователя;' });
+        return res.status(400).send({ message: 'Переданы некорректные данные в методы создания пользователя;' });
       }
       res.status(500).send({ message: 'Ошибка по умолчанию.' });
     });
@@ -58,7 +58,7 @@ module.exports.updateUserById = (req, res) => {
     // eslint-disable-next-line consistent-return
     .then((user) => {
       if (!user) {
-        res.status(404).send({ message: 'Пользователь по указанному _id не найден.' });
+        return res.status(404).send({ message: 'Пользователь по указанному _id не найден.' });
       }
       res.status(200).send({ data: user });
     })
@@ -89,7 +89,7 @@ module.exports.updateAvatarById = (req, res) => {
     // eslint-disable-next-line consistent-return
     .then((user) => {
       if (!user) {
-        res.status(404).send({ message: 'Пользователь по указанному _id не найден.' });
+        return res.status(404).send({ message: 'Пользователь по указанному _id не найден.' });
       }
       res.status(200).send({ data: user });
     })
@@ -101,6 +101,6 @@ module.exports.updateAvatarById = (req, res) => {
       else if (err.name === 'CastError') {
         return res.status(400).send({ message: 'Переданы некорректные данные при создании пользователя.' });
       }
-      return res.status(500).send({ message: 'Ошибка по умолчанию.' });
+      res.status(500).send({ message: 'Ошибка по умолчанию.' });
     });
 };

@@ -67,7 +67,7 @@ module.exports.likeCard = (req, res) => {
       if (err.name === 'CastError') {
         return res.status(400).send({ message: 'Переданы некорректные данные для постановки/снятии лайка.' });
       }
-      return res.status(500).send({ message: 'Ошибка по умолчанию.' });
+      res.status(500).send({ message: 'Ошибка по умолчанию.' });
     });
 };
 
