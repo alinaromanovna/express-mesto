@@ -1,48 +1,45 @@
 /* eslint-disable consistent-return */
 const Card = require('../models/card');
+const BadRequestError = require('../errors/bad_request');
+const NotFoundError = require('../errors/not_found');
+const ForbiddenError = require('../errors/forbidden');
 
-module.exports.getCards = (req, res) => {
+module.exports.getCards = (req, res, next) => {
   Card.find({})
     .then((cards) => {
       res.send({ data: cards });
     })
-    .catch(() => {
-      res.status(500).send({ message: 'Ошибка по умолчанию.' });
-    });
+    .catch(next);
 };
 
-// eslint-disable-next-line consistent-return
-module.exports.createCard = (req, res) => {
+module.exports.createCard = (req, res, next) => {
   const { name, link } = req.body;
   const owner = req.user._id;
 
-  if (!name || !link) {
-    return res.status(400).send({ message: 'Переданы некорректные данные при создании карточки.' });
-  }
   Card.create({ name, link, owner })
     .then((card) => {
       res.status(201).send({ data: card });
     })
-    // eslint-disable-next-line consistent-return
     .catch((err) => {
       if (err.name === 'ValidationError') {
-        return res.status(400).send({ message: 'Переданы некорректные данные при создании карточки.' });
+        next(new BadRequestError('Переданы некорректные данные при создании карточки.'));
       }
-      res.status(500).send({ message: 'Ошибка по умолчанию.' });
+      next(err);
     });
 };
 
-module.exports.deleteCard = (req, res) => {
+module.exports.deleteCard = (req, res, next) => {
   const { cardId } = req.params;
   Card.findByIdAndRemove(cardId)
-    // eslint-disable-next-line consistent-return
+    .orFail(() => new NotFoundError('Пользователь по указанному _id не найден.'))
     .then((card) => {
-      if (!card) {
-        return res.status(404).send({ message: 'Карточка с указанным _id не найдена.' });
+      if (card.owner.toString() === req.user._id.toString()) {
+        card.remove(() => {
+          res.status(200).send({ message: 'Карточка удалена' });
+        });
       }
-      res.status(200).send({ message: 'Карточка удалена' });
+      next(new ForbiddenError('У вас нет прав для удаления карточки'));
     })
-    // eslint-disable-next-line consistent-return
     .catch((err) => {
       if (err.name === 'CastError') {
         return res.status(400).send({ message: 'Переданы некорректные данные' });
@@ -51,43 +48,38 @@ module.exports.deleteCard = (req, res) => {
     });
 };
 
-module.exports.likeCard = (req, res) => {
+module.exports.likeCard = (req, res, next) => {
   Card.findByIdAndUpdate(
     req.params.cardId,
     { $addToSet: { likes: req.user._id } },
     { new: true },
   )
-    // eslint-disable-next-line consistent-return
+    .orFail(() => new NotFoundError('Пользователь по указанному _id не найден.'))
     .then((card) => {
-      if (!card) {
-        return res.status(404).send({ message: 'Передан несуществующий _id карточки.' });
-      }
       res.status(200).send({ data: card });
     })
     .catch((err) => {
       if (err.name === 'CastError') {
-        return res.status(400).send({ message: 'Переданы некорректные данные для постановки/снятии лайка.' });
+        next(new BadRequestError('Переданы некорректные данные для постановки/снятии лайка.'));
       }
-      res.status(500).send({ message: 'Ошибка по умолчанию.' });
+      next(err);
     });
 };
 
-module.exports.dislikeCard = (req, res) => {
+module.exports.dislikeCard = (req, res, next) => {
   Card.findByIdAndUpdate(
     req.params.cardId,
     { $pull: { likes: req.user._id } },
     { new: true },
   )
+    .orFail(() => new NotFoundError('Пользователь по указанному _id не найден.'))
     .then((card) => {
-      if (!card) {
-        return res.status(404).send({ message: 'Передан несуществующий _id карточки.' });
-      }
       res.status(200).send({ data: card });
     })
     .catch((err) => {
       if (err.name === 'CastError') {
-        return res.status(400).send({ message: 'Переданы некорректные данные для постановки/снятии лайка.' });
+        next(new BadRequestError('Переданы некорректные данные для постановки/снятии лайка.'));
       }
-      res.status(500).send({ message: 'Ошибка по умолчанию.' });
+      next(err);
     });
 };
