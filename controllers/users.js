@@ -1,106 +1,128 @@
+/* eslint-disable no-undef */
+/* eslint-disable object-curly-newline */
 /* eslint-disable brace-style */
 /* eslint-disable consistent-return */
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 const User = require('../models/user');
+const BadRequestError = require('../errors/bad_request');
+const NotFoundError = require('../errors/not_found');
+const UnauthorizedError = require('../errors/unauthorized');
+const ConflictError = require('../errors/conflict');
 
-module.exports.getUsers = (req, res) => {
+module.exports.login = (req, res, next) => {
+  const { email, password } = req.body;
+  User.findOne({ email })
+    .select('+password')
+    .orFail(() => new UnauthorizedError('Неправильные почта или пароль'))
+    .then((user) => {
+      bcrypt.compare(password, user.password);
+    })
+    .then((matched) => {
+      if (!matched) {
+        next(new UnauthorizedError('Неправильные почта или пароль'));
+      }
+      const token = jwt.sign({ _id: User._id }, 'secret', { expiresIn: '7d' });
+      res.status(200).send({ token });
+    })
+    .catch(next);
+};
+
+module.exports.getUsers = (req, res, next) => {
   User.find({})
     .then((users) => {
       res.send({ data: users });
     })
-    .catch(() => {
-      res.status(500).send({ message: 'Ошибка по умолчанию.' });
-    });
+    .catch(next);
 };
 
-module.exports.getUserById = (req, res) => {
+module.exports.getUsersMe = (req, res, next) => {
   User.findById(req.user._id)
     .then((user) => {
-      if (!user) {
-        return res.status(404).send({ message: 'Пользователь по указанному _id не найден.' });
-      }
+      res.status(200).send({ data: user });
+    })
+    .catch(next);
+};
+
+module.exports.getUserById = (req, res, next) => {
+  User.findById(req.user._id)
+    .orFail(() => new NotFoundError('Пользователь по указанному _id не найден.'))
+    .then((user) => {
       res.status(200).send({ data: user });
     })
     // eslint-disable-next-line consistent-return
     .catch((err) => {
       if (err.name === 'CastError') {
-        return res.status(400).send({ message: 'Переданы некорректные данные' });
+        next(new BadRequestError('Переданы некорректные данные'));
       }
-      res.status(500).send({ message: 'Ошибка по умолчанию.' });
+      next(err);
     });
 };
 
-module.exports.createUser = (req, res) => {
-  const { name, about, avatar } = req.body;
-  User.create({ name, about, avatar })
-    .then((user) => {
-      res.status(201).send({ data: user });
+module.exports.createUser = (req, res, next) => {
+  const { name, about, avatar, email, password } = req.body;
+  bcrypt.hash(password, 10)
+    .then((hash) => User.create({ name,
+      about,
+      avatar,
+      email,
+      password: hash }))
+    .then(() => {
+      res.status(201).send({ data: { name, about, avatar, email } });
     })
     .catch((err) => {
-      if (err.name === 'ValidationError') {
-        return res.status(400).send({ message: 'Переданы некорректные данные в методы создания пользователя;' });
+      if (code === 11000) {
+        next(new ConflictError('Пользователь с таким email уже зарегистрирован'));
       }
-      res.status(500).send({ message: 'Ошибка по умолчанию.' });
+      else if (err.name === 'ValidationError') {
+        next(new BadRequestError('Переданы некорректные данные в методы создания пользователя;'));
+      }
+      next(err);
     });
 };
 
 // eslint-disable-next-line consistent-return
-module.exports.updateUserById = (req, res) => {
+module.exports.updateUserById = (req, res, next) => {
   const { name, about } = req.body;
 
-  if (!name || !about) {
-    return res.status(400).send({ message: 'Переданы некорректные данные при создании пользователя.' });
-  }
   User.findByIdAndUpdate(
     req.user._id,
     { name, about },
     { new: true, runValidators: true },
   )
-    // eslint-disable-next-line consistent-return
+    .orFail(() => new NotFoundError('Пользователь по указанному _id не найден.'))
     .then((user) => {
-      if (!user) {
-        return res.status(404).send({ message: 'Пользователь по указанному _id не найден.' });
-      }
       res.status(200).send({ data: user });
     })
     .catch((err) => {
       if (err.name === 'ValidationError') {
-        return res.status(400).send({ message: 'Введены некорректные данные в методы обновления профиля;' });
+        next(new BadRequestError('Введены некорректные данные в методы обновления профиля;'));
       }
-      // eslint-disable-next-line no-else-return
       else if (err.name === 'CastError') {
-        return res.status(400).send({ message: 'Переданы некорректные данные при создании пользователя.' });
+        next(new BadRequestError('Переданы некорректные данные при создании пользователя.'));
       }
-      res.status(500).send({ message: 'Ошибка по умолчанию.' });
+      next(err);
     });
 };
 
-// eslint-disable-next-line consistent-return
-module.exports.updateAvatarById = (req, res) => {
+module.exports.updateAvatarById = (req, res, next) => {
   const { avatar } = req.body;
-
-  if (!avatar) {
-    return res.status(400).send({ message: 'Переданы некорректные данные при создании карточки.' });
-  }
   User.findByIdAndUpdate(
     req.user._id,
     { avatar },
     { new: true },
   )
-    // eslint-disable-next-line consistent-return
+    .orFail(() => new NotFoundError('Пользователь по указанному _id не найден.'))
     .then((user) => {
-      if (!user) {
-        return res.status(404).send({ message: 'Пользователь по указанному _id не найден.' });
-      }
       res.status(200).send({ data: user });
     })
     .catch((err) => {
       if (err.name === 'ValidationError') {
-        return res.status(400).send({ message: 'переданы некорректные данные в методы создания аватара пользователя;' });
+        next(new BadRequestError('переданы некорректные данные в методы создания аватара пользователя;'));
       }
-      // eslint-disable-next-line no-else-return
       else if (err.name === 'CastError') {
-        return res.status(400).send({ message: 'Переданы некорректные данные при создании пользователя.' });
+        next(new BadRequestError('Переданы некорректные данные при создании пользователя.'));
       }
-      res.status(500).send({ message: 'Ошибка по умолчанию.' });
+      next(err);
     });
 };
