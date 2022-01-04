@@ -14,16 +14,16 @@ module.exports.login = (req, res, next) => {
   const { email, password } = req.body;
   User.findOne({ email })
     .select('+password')
-    .orFail(() => new UnauthorizedError('Неправильные почта или пароль'))
+    .orFail(() => new UnauthorizedError('Неправильные почта или пароль!'))
     .then((user) => {
-      bcrypt.compare(password, user.password);
-    })
-    .then((matched) => {
-      if (!matched) {
-        next(new UnauthorizedError('Неправильные почта или пароль'));
-      }
-      const token = jwt.sign({ _id: User._id }, 'secret', { expiresIn: '7d' });
-      res.status(200).send({ token });
+      bcrypt.compare(password, user.password)
+        .then((matched) => {
+          if (!matched) {
+            next(new UnauthorizedError('Неправильные почта или пароль'));
+          }
+          const token = jwt.sign({ _id: User._id }, 'secret', { expiresIn: '7d' });
+          res.status(200).send({ token });
+        });
     })
     .catch(next);
 };
@@ -71,7 +71,7 @@ module.exports.createUser = (req, res, next) => {
       res.status(201).send({ data: { name, about, avatar, email } });
     })
     .catch((err) => {
-      if (code === 11000) {
+      if (err.name === 'MongoServerError' && err.code === 11000) {
         next(new ConflictError('Пользователь с таким email уже зарегистрирован'));
       }
       else if (err.name === 'ValidationError') {
