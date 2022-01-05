@@ -1,4 +1,3 @@
-/* eslint-disable consistent-return */
 const Card = require('../models/card');
 const BadRequestError = require('../errors/bad_request');
 const NotFoundError = require('../errors/not_found');
@@ -42,9 +41,9 @@ module.exports.deleteCard = (req, res, next) => {
     })
     .catch((err) => {
       if (err.name === 'CastError') {
-        return res.status(400).send({ message: 'Переданы некорректные данные' });
+        next(new BadRequestError('Переданы некорректные данные'));
       }
-      res.status(500).send({ message: 'Ошибка по умолчанию.' });
+      next(err);
     });
 };
 

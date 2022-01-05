@@ -1,7 +1,3 @@
-/* eslint-disable no-undef */
-/* eslint-disable object-curly-newline */
-/* eslint-disable brace-style */
-/* eslint-disable consistent-return */
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/user');
@@ -38,10 +34,16 @@ module.exports.getUsers = (req, res, next) => {
 
 module.exports.getUsersMe = (req, res, next) => {
   User.findById(req.user._id)
+    .orFail(() => new NotFoundError('Пользователь по указанному _id не найден.'))
     .then((user) => {
       res.status(200).send({ data: user });
     })
-    .catch(next);
+    .catch((err) => {
+      if (err.name === 'CastError') {
+        next(new BadRequestError('Переданы некорректные данные'));
+      }
+      next(err);
+    });
 };
 
 module.exports.getUserById = (req, res, next) => {
@@ -50,7 +52,6 @@ module.exports.getUserById = (req, res, next) => {
     .then((user) => {
       res.status(200).send({ data: user });
     })
-    // eslint-disable-next-line consistent-return
     .catch((err) => {
       if (err.name === 'CastError') {
         next(new BadRequestError('Переданы некорректные данные'));
@@ -60,28 +61,35 @@ module.exports.getUserById = (req, res, next) => {
 };
 
 module.exports.createUser = (req, res, next) => {
-  const { name, about, avatar, email, password } = req.body;
+  const {
+    name, about, avatar, email, password,
+  } = req.body;
   bcrypt.hash(password, 10)
-    .then((hash) => User.create({ name,
+    .then((hash) => User.create({
+      name,
       about,
       avatar,
       email,
-      password: hash }))
+      password: hash,
+    }))
     .then(() => {
-      res.status(201).send({ data: { name, about, avatar, email } });
+      res.status(201).send({
+        data:
+      {
+        name, about, avatar, email,
+      },
+      });
     })
     .catch((err) => {
       if (err.name === 'MongoServerError' && err.code === 11000) {
         next(new ConflictError('Пользователь с таким email уже зарегистрирован'));
-      }
-      else if (err.name === 'ValidationError') {
+      } else if (err.name === 'ValidationError') {
         next(new BadRequestError('Переданы некорректные данные в методы создания пользователя;'));
       }
       next(err);
     });
 };
 
-// eslint-disable-next-line consistent-return
 module.exports.updateUserById = (req, res, next) => {
   const { name, about } = req.body;
 
@@ -97,9 +105,8 @@ module.exports.updateUserById = (req, res, next) => {
     .catch((err) => {
       if (err.name === 'ValidationError') {
         next(new BadRequestError('Введены некорректные данные в методы обновления профиля;'));
-      }
-      else if (err.name === 'CastError') {
-        next(new BadRequestError('Переданы некорректные данные при создании пользователя.'));
+      } else if (err.name === 'CastError') {
+        next(new BadRequestError('Передан некорректный _id'));
       }
       next(err);
     });
@@ -119,9 +126,8 @@ module.exports.updateAvatarById = (req, res, next) => {
     .catch((err) => {
       if (err.name === 'ValidationError') {
         next(new BadRequestError('переданы некорректные данные в методы создания аватара пользователя;'));
-      }
-      else if (err.name === 'CastError') {
-        next(new BadRequestError('Переданы некорректные данные при создании пользователя.'));
+      } else if (err.name === 'CastError') {
+        next(new BadRequestError('Передан некорректный _id'));
       }
       next(err);
     });
