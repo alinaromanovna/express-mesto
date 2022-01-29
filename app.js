@@ -1,3 +1,4 @@
+require('dotenv').config();
 // const path = require('path');
 const express = require('express');
 const mongoose = require('mongoose');
@@ -30,6 +31,7 @@ app.post('/signin', celebrate({
     password: Joi.string().required(),
   }),
 }), login);
+
 app.post('/signup', celebrate({
   body: Joi.object().keys({
     name: Joi.string().min(2).max(30),
